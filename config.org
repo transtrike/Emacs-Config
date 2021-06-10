@@ -69,10 +69,10 @@ Some bla bla stuff goes here
   ;; Set user's directory for config files
   ;; (setq user-emacs-directory "/opt/emacs-config")
 
+  (use-package no-littering)
   ;; Keep auto-save files away, so they don't trash the current directory
   (setq auto-save-file-name-transforms
 	`((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
-  (use-package no-littering)
 
   #+end_src
 
@@ -114,6 +114,14 @@ Some bla bla stuff goes here
 
   (column-number-mode)
   (global-display-line-numbers-mode t)
+
+  ;; Smooth scrolling
+  (setq redisplay-dont-pause t
+	scroll-margin 1
+	scroll-step 1
+	scroll-conservatively 10000
+	scroll-preserve-screen-position 1)
+
 
   ;; Start every Emacs frame(instance) maximized
   (add-to-list 'default-frame-alist '(fullscreen . maximized))
@@ -230,14 +238,14 @@ Some bla bla stuff goes here
 
   #+end_src
 
-  Configure evil-undo-system
-
+  Configure evil-undo-system(TODO: Fix, 'cuz it's not working properly)
   #+begin_src emacs-lisp
 
   ;; Define Evil undo system
-  (use-package undo-tree)
-  ;;(undo-tree-mode)
-  (global-undo-tree-mode)
+  (use-package undo-tree
+    :init
+    ;;(undo-tree-mode)
+    (global-undo-tree-mode))
 
   ;;(setq evil-undo-system 'undo-redo)
 
@@ -296,7 +304,9 @@ Some bla bla stuff goes here
   (use-package smartparens
     :init
     (smartparens-global-mode)
-    (smartparens-strict-mode))
+    ;; Enable strict mode(don't enable it for a config file like this one)
+    ;; (smartparens-strict-mode)
+    )
 
   #+end_src
 
@@ -346,9 +356,16 @@ Some bla bla stuff goes here
 
     #+end_src
 
-    *** Org mode highliting and code evaluation
+    *** Org mode highlighting and code evaluation
+    The ability to evaluate code and have highlighting in the code blocks
+    Commands:
+    - evaluate-last-expression -> Place on the last parenthesis and click "C-x C-e" to
+    execute that particular expression
+    - org-ctrl-c-ctrl-c-hook -> Cursor placed inside a code block and clicking "C-c C-c"
+    evaluates the code block as if the config is reloaded
     #+begin_src emacs-lisp
 
+    ;;
     (org-babel-do-load-languages
      'org-babel-load-lanaguages
      '(
@@ -363,14 +380,66 @@ Some bla bla stuff goes here
 
 * Packages
 
+  ** Magit
+  The famous magit!
+  #+begin_src emacs-lisp
 
-  * Helm
+  (use-package magit)
+
+  #+end_src
+
+  ** Ivy & Counsel
+  Generic completion mechanism, paired with ivy-enchanced versions of common Emacs commands
+  #+begin_src emacs-lisp
+
+  (use-package ivy
+    :config
+    (ivy-mode 1))
+
+  #+end_src
+
+  #+begin_src emacs-lisp
+
+  (use-package counsel
+    :after ivy
+    :init
+    (global-set-key (kbd "M-x") 'counsel-M-x) ;; Enchanced M-x
+    (global-set-key (kbd "C-x C-f") 'counsel-find-file) ;; Enchanced Find File
+
+  )
+
+  #+end_src
+
+  ** Swiper
+  Fuzzy searching, Ivy-enchanced version of Isearch
+  #+begin_src emacs-lisp
+
+  (use-package swiper
+    :after counsel
+    :init
+    (evil-global-set-key 'normal "/" 'swiper) ;; Bind "/", in normal mode, to swiper
+    :config
+    (add-to-list 'ivy-height-alist '(swiper . 5)) ;; Make swiper's hight to 5
+    )
+
+  #+end_src
 
   * Company
+  Text completion framework(IntelliSense).
+  From now on, every language must be added as a backend to this one.
+  Configure all programming language packages with ":after company"
+  #+begin_src emacs-lisp
+
+  (use-package company
+    :init
+    (evil-global-set-key 'insert (kbd "M-.") 'company-complete)
+    :config
+    (add-hook 'after-init-hook 'global-comapny-mode)
+    (company-mode))
+
+  #+end_src
 
   * Flycheck
-
-  * Swiper
 
 
 * Navigation
@@ -382,6 +451,8 @@ Some bla bla stuff goes here
 
 
   * Language Server Protocol
+
+  * Dap Mode
 
   * CSharp & Omnisharp(TODO: Finish and add omnisharp)
   #+begin_src emacs-lisp

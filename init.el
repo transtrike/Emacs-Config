@@ -40,10 +40,10 @@
 ;; Set user's directory for config files
 ;; (setq user-emacs-directory "/opt/emacs-config")
 
+(use-package no-littering)
 ;; Keep auto-save files away, so they don't trash the current directory
 (setq auto-save-file-name-transforms
       `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
-(use-package no-littering)
 
 (use-package auto-package-update
   :custom
@@ -71,6 +71,14 @@
 
 (column-number-mode)
 (global-display-line-numbers-mode t)
+
+;; Smooth scrolling
+(setq redisplay-dont-pause t
+      scroll-margin 1
+      scroll-step 1
+      scroll-conservatively 10000
+      scroll-preserve-screen-position 1)
+
 
 ;; Start every Emacs frame(instance) maximized
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
@@ -145,10 +153,10 @@
   (evil-collection-init))
 
 ;; Define Evil undo system
-(setq evil-want-fine-undo 'fine)
-;;(use-package undo-fu)
-;;(undo-tree-mode)
-;;(global-undo-tree-mode)
+(use-package undo-tree
+  :init
+  ;;(undo-tree-mode)
+  (global-undo-tree-mode))
 
 ;;(setq evil-undo-system 'undo-redo)
 
@@ -182,6 +190,13 @@
 ;; Ensure files end with a new line
 (setq require-final-newline t)
 
+(use-package smartparens
+  :init
+  (smartparens-global-mode)
+  ;; Enable strict mode(don't enable it for a config file like this one)
+  ;; (smartparens-strict-mode)
+  )
+
 (defconst efs/org-special-pre "^\s*#[+]")
 (defun efs/org-2every-src-block (fn)
   "Visit every Source-Block and evaluate `FN'."
@@ -211,6 +226,7 @@
       org-src-window-setup 'current-window
       org-edit-src-content-indentation 0)
 
+;;
 (org-babel-do-load-languages
  'org-babel-load-lanaguages
  '(
@@ -219,6 +235,33 @@
    ))
 
 (setq org-confirm-babel-evaluate nil)
+
+(use-package ivy
+  :config
+  (ivy-mode 1))
+
+(use-package counsel
+  :after ivy
+  :init
+  (global-set-key (kbd "M-x") 'counsel-M-x) ;; Enchanced M-x
+  (global-set-key (kbd "C-x C-f") 'counsel-find-file) ;; Enchanced Find File
+
+)
+
+(use-package swiper
+  :after counsel
+  :init
+  (evil-global-set-key 'normal "/" 'swiper) ;; Bind "/", in normal mode, to swiper
+  :config
+  (add-to-list 'ivy-height-alist '(swiper . 5)) ;; Make swiper's hight to 5
+  )
+
+(use-package company
+  :init
+  (evil-global-set-key 'insert (kbd "M-.") 'company-complete)
+  :config
+  (add-hook 'after-init-hook 'global-comapny-mode)
+  (company-mode))
 
 (defun efs/csharp-mode-setup ()
   (setq c-syntactic-indentation t)
@@ -234,7 +277,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(smartparens which-key use-package undo-tree undo-fu no-littering general evil-collection doom-themes doom-modeline auto-package-update)))
+   '(magit company counsel ivy smartparens which-key undo-tree evil-collection evil general doom-modeline all-the-icons doom-themes auto-package-update no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
