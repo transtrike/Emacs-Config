@@ -16,7 +16,7 @@
 		    ))
 	   gcs-done))
 
-(add-hook 'emacs-startup-hook #'efs/display-startup-time)
+(add-hook 'emacs-startup-hook 'efs/display-startup-time)
 
 (setq straight-fix-flycheck t)
 (setq straight-use-package-by-default t)
@@ -34,50 +34,25 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
-;; Package `use-package' provides a handy macro by the same name which
-;; is essentially a wrapper around `with-eval-after-load' with a lot
-;; of handy syntactic sugar and useful features.
 (straight-use-package 'use-package)
-
-;; When configuring a feature with `use-package', also tell
-;; straight.el to install a package of the same name, unless otherwise
-;; specified using the `:straight' keyword.
-(setq straight-use-package-by-default t)
-
-;; Tell `use-package' to always load features lazily unless told
-;; otherwise. It's nicer to have this kind of thing be deterministic:
-;; if `:demand' is present, the loading is eager; otherwise, the
-;; loading is lazy.
-(setq use-package-always-defer t)
+(setq straight-always-use-package-ensure t)
 
 (straight-register-package 'org)
 (straight-register-package 'org-contrib)
 
-(eval-when-compile (require 'use-package))
+;;(eval-when-compile (require 'use-package))
 
 (use-package bind-key
-	     :demand t)
+  :demand t)
 
 ;; Set user's directory for config files
 ;; (setq user-emacs-directory "/opt/emacs-config")
 
-(use-package no-littering)
+(use-package no-littering
+  :demand t)
 ;; Keep auto-save files away, so they don't trash the current directory
 (setq auto-save-file-name-transforms
       `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
-
-(use-package auto-package-update
-	     :custom
-	     (auto-package-update-interval 7)
-	     ;;(auto-package-update-prompt-before-update t)
-	     (auto-package-update-hide-results t)
-	     :config
-	     (auto-package-update-maybe)
-	     (auto-package-update-at-time "09:00"))
-
-;; Windows inspired. No asking, just doing. Lmao
-(add-hook 'auto-package-update-before-hook
-	  (lambda () (message "I will update packages now")))
 
 ;; Remove startup message and scratch buffer
 (setq inhibit-startup-message t)
@@ -114,42 +89,102 @@
 		eshell-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
-(set-face-attribute 'default nil
-		    :font "Fira Code Retina"
-		    :height efs/default-font-size)
+(defun efs/set-font-faces ()
+  (message "Setting fonts!")
+  (set-face-attribute 'default nil
+		      :font "Fira Code Retina"
+		      :height efs/default-font-size)
 
-;; Set the fixed pitch face
-(set-face-attribute 'fixed-pitch nil
-		    :font "Fira Code Retina"
-		    :height efs/default-font-size)
+  ;; Set the fixed pitch face
+  (set-face-attribute 'fixed-pitch nil
+		      :font "Fira Code Retina"
+		      :height efs/default-font-size)
 
-;; Set the variable pitch face
-(set-face-attribute 'variable-pitch nil
-		    :font "Cantarell"
-		    :height efs/default-variable-font-size :weight 'regular)
+  ;; Set the variable pitch face
+  (set-face-attribute 'variable-pitch nil
+		      :font "Cantarell"
+		      :height efs/default-variable-font-size :weight 'regular))
+
+(if (daemonp)
+    (add-hook 'after-make-frame-functions
+	      (lambda(frame)
+		(setq doom-modeline-icon t)
+		(with-selected-frame frame (efs/set-font-faces))))
+  (efs/set-font-faces))
+
+(setq-default ibuffer-saved-filter-groups
+	      `(("Default"
+		 ("Temporary" (name . "\*.*\*"))
+		 ("Magit" (name . "^magit")))))
+
+(add-hook 'ibuffer-mode-hook
+	  (lambda ()
+	    (ibuffer-auto-mode 1)
+	    (ibuffer-switch-to-saved-filter-groups "Default")))
+
+(setq ibuffer-show-empty-filter-groups nil
+      ibuffer-expert t)
+
+(defun fw/vsplit-last-buffer ()
+  "Split the selected window into two vertical windows."
+  (interactive)
+  (split-window-vertically)
+  (other-window 1)
+  (switch-to-next-buffer))
+
+(defun fw/hsplit-last-buffer ()
+  "Split the selected window into two horizontal windows."
+  (interactive)
+  (split-window-horizontally)
+  (other-window 1)
+  (switch-to-next-buffer))
+
+(defun fw/kill-this-buffer ()
+  "Kills this buffer and removes this window when split."
+  (interactive)
+  (kill-this-buffer)
+  (when (> (length (window-list)) 1)
+    (delete-window)))
 
 (use-package doom-themes
-  :init (load-theme 'doom-palenight t))
+  :demand t
+  :config
+  (setq doom-themes-enable-bold t
+	doom-themes-enable-italic t)
+  (load-theme 'doom-one t)
+  ;;(doom-themes-neotree-config) ;; Load a custom theme for neotree
+  (doom-themes-org-config)) ;; Improve org mode's native fontification
 
-(use-package all-the-icons)
+(use-package all-the-icons
+  :after doom-modeline)
 
 (use-package doom-modeline
-:init (doom-modeline-mode 1)
-:custom ((doom-modeline-height 15)))
+  :demand t
+  :config (doom-modeline-mode 1)
+  :custom
+  (doom-modeline-height 15)
+  (doom-modeline-lsp t))
 
+;; ESC quit prompts(like in VIM)
 (bind-key "<escape>" 'keyboard-escape-quit)
+
+;; Save ma'h FILEEEEE
+(bind-key* "C-s" 'save-buffer)
+
+(global-auto-revert-mode t)
 
 (use-package general
   :demand t
   :after evil
   :config
-  (general-create-definer efs/leader-keys
+  ;; Define leaders keys to use later on
+  (general-create-definer efs/buffer-keys
     :keymaps '(normal insert visual emacs)
-    :prefix "SPC"
-    :global-prefix "C-SPC")
+    :prefix "C-b")
 
-  (efs/leader-keys
-    "t"  '(:ignore t :which-key "toggles")))
+  ;;(efs/leader-keys
+  ;; "t"  '(:ignore t :which-key "toggles"))
+  )
 
 (use-package evil
   :demand t
@@ -178,16 +213,17 @@
   (evil-collection-init))
 
 ;; Define Evil undo system
-(use-package undo-tree
-  :demand t
-  :init
-  ;;(undo-tree-mode)
-  (global-undo-tree-mode))
+;; (use-package undo-tree
+;;   :demand t
+;;   :after evil
+;;   :init
+;;   ;;(undo-tree-mode)
+;;   (global-undo-tree-mode))
 
 ;;(setq evil-undo-system 'undo-redo)
 
 (use-package which-key
-  :demand t
+  :defer 1
   :diminish which-key-mode
   :config
   (setq which-key-idle-delay 0.3) ;; How long until the tooltip shows
@@ -242,37 +278,28 @@
 ;;   )
 
 (use-package smartparens
-  :demand t
+  :defer 1
   :init
   (smartparens-global-mode)
   ;; Enable strict mode(don't enable it for a config file like this one)
   ;; (smartparens-strict-mode)
-  )
+)
 
 (use-package evil-nerd-commenter
-  :demand t
+  :defer 1
   :bind
   (("C-/" . evilnc-comment-or-uncomment-lines)
-  ("M-;" . evilnc-comment-or-uncomment-lines)))
+   ("M-;" . evilnc-comment-or-uncomment-lines)))
+
+(use-package super-save
+  :defer 1
+  :diminish super-save-mode
+  :config
+  (super-save-mode +1)
+  (setq super-save-auto-save-when-idle t))
 
 (setq user-init-file (expand-file-name "config.org" user-emacs-directory))
-;;(bind-key ("C-c c" . (lambda() (interactive)(find-file "~/.emacs.d/config.org"))))
-
-(defconst efs/org-special-pre "^\s*#[+]")
-(defun efs/org-2every-src-block (fn)
-  (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    (let ((case-fold-search t))
-      (while (re-search-forward (concat help/org-special-pre "BEGIN_SRC") nil t)
-	(let ((element (org-element-at-point)))
-	  (when (eq (org-element-type element) 'src-block)
-	    (funcall fn element)))))
-    (save-buffer)))
-
-;;(define-key org-mode-map (kbd "C-c C-v y") (lambda () (interactive)
-;;					   (efs/org-2every-src-block
-;;					    'org-babel-remove-result)))
+(bind-key "C-c c" (lambda() (interactive)(find-file "~/.emacs.d/config.org")))
 
 (require 'org-tempo)
 
@@ -286,7 +313,6 @@
       org-src-window-setup 'current-window
       org-edit-src-content-indentation 0)
 
-;;
 (org-babel-do-load-languages
  'org-babel-load-lanaguages
  '(
@@ -297,35 +323,48 @@
 (setq org-confirm-babel-evaluate nil)
 
 (use-package org-auto-tangle
-  :demand t
   :hook (org-mode . org-auto-tangle-mode))
 
+;; This is nessessary if you want to restore sessions
+;; Useful when emacs crashes in daemon mode, because of
+;; X11(GTK) connection issues
+;; (desktop-save-mode 1)
+
 (use-package magit
-  :demand t)
+  :commands (magit-status))
+
+;; Spellcheck the commits
+(add-hook 'git-commit-mode-hook 'flyspell-mode)
 
 (use-package ivy
-  :demand t
+  :bind (:map ivy-minibuffer-map
+	      ("TAB" . ivy-alt-done)
+	      ("C-j" . ivy-next-line)
+	      ("C-k" . ivy-previous-line)
+	      :map ivy-switch-buffer-map
+	      ("C-j" . ivy-next-line)
+	      ("C-k" . ivy-previous-line)
+	      ("TAB" . ivy-done)
+	      ("C-d" . ivy-switch-buffer-kill))
   :config
   (ivy-mode 1))
 
 (use-package counsel
   :after ivy
-  :bind (
-	 ("M-x" . counsel-M-x) ;; Enchanced M-x
-	 ("C-x C-f" . counsel-find-file) ;; Enchanced Find File
-	 )
-  )
+  :bind (("M-x" . counsel-M-x) ;; Enchanced M-x
+	 ("C-x C-f" . counsel-find-file))) ;; Enchanced Find File
+
+(efs/buffer-keys
+  "b" 'counsel-switch-buffer)
 
 (use-package swiper
-  :after counsel
+  :after ivy
   :bind (:map evil-normal-state-map
 	      ("/" . swiper)) ;; Bind "/", in normal mode, to swiper
   :config
-  (add-to-list 'ivy-height-alist '(swiper . 5)) ;; Make swiper's hight to 5
-  )
+  (add-to-list 'ivy-height-alist '(swiper . 5))) ;; Make swiper's hight to 5
 
 (use-package company
-  :demand t
   :bind
   (:map evil-normal-state-map
 	("M-." . company-complete))
@@ -334,29 +373,43 @@
   (company-mode))
 
 (use-package flycheck
-  :demand t
+  :defer 1
   :init
   (global-flycheck-mode))
 
-(use-package selectrum
-  :disabled t
-  :init
-  (selectrum-mode +1)
-  (selectrum-prescient-mode +1)
-  (prescient-persist-mode +1)
-  :bind(
-  ("C-x C-z") . selectrum-repeat) ;; Reperat last command
-  )
+;; (use-package vertico
+;;   :bind (:map vertico-map
+;; 		("C-j" . vertico-next)
+;; 		("C-k" . vertico-previous)
+;; 		("C-f" . vertico-exit)
+;; 		:map minibuffer-local-map
+;; 		("M-h" . backward-kill-word))
+;;   :custom
+;;   (vertico-cycle t)
+;;   :init
+;;   (vertico-mode))
+
+;; (use-package savehist
+;;   :after vertigo
+;;   :init
+;;   (savehist-mode))
+
+;; (use-package marginalia
+;;   :after vertico
+;;   :custom
+;;   (marginalia-annotators '(marginalia-annotators-heavy marginalia-annotators-light nil))
+;;   :init
+;;   (marginalia-mode))
 
 (use-package helpful
-  :bind (
-  ("C-h f" . helpful-callable)
-  ("C-h v" . helpful-variable)
-  ("C-h k" . helpful-key)
-  ("C-h C" . helpful-command))
-)
+  :defer 1
+  :bind (("C-h f" . helpful-callable)
+	 ("C-h v" . helpful-variable)
+	 ("C-h k" . helpful-key)
+	 ("C-h C" . helpful-command)))
 
 (use-package projectile
+  :demand t
   :config
   (projectile-mode)
   (setq projectile-enable-caching t)
@@ -365,10 +418,10 @@
 	'("#" "~" ".swp" ".o" ".so" ".exe" ".dll" ".elc" ".pyc" ".jar"))
   (setq projectile-globally-ignored-directories
 	'(".git" "node_modules" "__pycache__" ".vs"))
-  (setq projectile-globally-ignored-files '("TAGS" "tags" ".DS_Store"))
-  )
+  (setq projectile-globally-ignored-files '("TAGS" "tags" ".DS_Store")))
 
 (use-package yasnippet
+  :defer 1
   :config
   (yas-global-mode 1))
 
@@ -377,52 +430,108 @@
 
 ;; (bind-key* "M-1" 'eshell evil-normal-state-map)
 
+(use-package perspective
+    :demand t
+    :bind (("C-M-k" . persp-switch)
+	   ("C-M-n" . persp-next)
+	   ("C-x k" . persp-kill-buffer*))
+    :custom
+
+(persp-initial-frame-name "Main")
+    :config
+    (unless (equal persp-mode t)
+      (persp-mode)))
+
+(use-package lsp-mode
+  :commands (lsp lsp-deferred)
+  :init
+  (setq lsp-keymap-prefix "C-l")
+  :config
+  (lsp-enable-which-key-integration t))
+
+(use-package lsp-ui
+  :custom
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-doc-enable t)
+  (lsp-ui-doc-position 'at-point)
+  (lsp-ui-doc-show-with-cursor t)
+  (lsp-ui-sideline-show-diagnostic)
+  (lsp-ui-sideline-code-actions t)
+  (lsp-ui-sideline-update-mode 'line))
+
+;; Integrate lsp and company
+(use-package company-lsp
+  :config
+  (setq company-lsp-cache-candidates 'auto)
+  (setq company-lsp-async t)
+  (setq company-lsp-enable-snippet t)
+  (setq company-lsp-enable-recompletion t))
+
+(use-package dap-mode
+  :config
+  (dap-auto-configure-mode)
+  (dap-ui-mode 1)
+  (dap-tooltip-mode 1)
+  (tooltip-mode 1)
+  (dap-ui-controls-mode 1))
+
+;; Add Rust config
+(dap-register-debug-template "Rust::GDB Run Configuration"
+			   (list :type "gdb"
+				 :request "launch"
+				 :name "GDB::Run"
+			 :gdbpath "rust-gdb"
+				 :target nil
+				 :cwd nil))
+
 (use-package csharp-mode
+  :hook lsp-mode
   :config
   (add-to-list 'auto-mode-alist '("\\.cs\\'" . csharp-tree-sitter-mode)))
 
-  (defun my-csharp-mode-hook-config ()
-    ;; enable the stuff you want for C# here
-    (electric-pair-mode 1)       ;; Emacs 24
-    (electric-pair-local-mode 1) ;; Emacs 25
-    (add-hook 'csharp-mode-hook 'flycheck-mode)
-    (add-hook 'csharp-mode-map 'yas-minor-mode)
-    (add-hook 'csharp-mode-hook 'omnisharp-mode)
-    (add-to-list 'auto-mode-alist '("\\.csproj\\'" . nxml-mode))
-    (add-to-list 'company-backends 'company-omnisharp)
+(defun my-csharp-mode-hook-config ()
+  ;; enable the stuff you want for C# here
+  (electric-pair-mode 1)       ;; Emacs 24
+  (electric-pair-local-mode 1) ;; Emacs 25
+  (add-hook 'csharp-mode-hook 'flycheck-mode)
+  (add-hook 'csharp-mode-map 'yas-minor-mode)
+  (add-hook 'csharp-mode-hook 'omnisharp-mode)
+  (add-to-list 'auto-mode-alist '("\\.csproj\\'" . nxml-mode))
+  (add-to-list 'company-backends 'company-omnisharp)
 
-    (setq c-syntactic-indentation t)
-    (c-set-style "ellemtel")
-    (setq c-basic-offset 4)
-    (setq truncate-lines t))
+  (setq c-syntactic-indentation t)
+  (c-set-style "ellemtel")
+  (setq c-basic-offset 4)
+  (setq truncate-lines t))
 
-  (use-package omnisharp
-    :straight `(omnisharp
-		   :type git
-		   :host github
-		   :repo "OmniSharp/omnisharp-emacs"
-		   :after company)
-    :bind (:map csharp-mode-map
-	    ("M-3" . omnisharp-solution-errors)
-	    ("." . omnisharp-auto-complete)
-	    ("<C-SPC>" . omnisharp-auto-complete)
-	    ("<f12>" . omnisharp-go-to-definition)
-	    ("g u" . omnisharp-find-usages)
-	    ("g I" . omnisharp-find-implementations)
-	    ("g o" . omnisharp-go-to-definition-other-window)
-	    ("g r" . omnisharp-run-code-action-refactoring)
-	    ("g f" . omnisharp-fix-code-issue-at-point)
-	    ("g F" . omnisharp-fix-usings)
-	    ("g R" . omnisharp-rename)
-	    (", i" . omnisharp-current-type-information)
-	    (", I" . omnisharp-current-type-documentation)
-	    ("." . omnisharp-add-dot-and-auto-complete)
-	    (", n t" . omnisharp-navigate-to-current-file-member)
-	    (", n s" . omnisharp-navigate-to-solution-member)
-	    (", n f" . omnisharp-navigate-to-solution-file-then-file-member)
-	    (", n F" . omnisharp-navigate-to-solution-file)
-	    (", n r" . omnisharp-navigate-to-region)))
-
-  (setq omnisharp-server-executable-path (expand-file-name "config/omnisharp" user-emacs-directory))
-  (setq omnisharp-auto-complete-want-documentation nil) ;; If docs fetching is a problem, comment this
-  (add-hook 'csharp-mode-hook 'my-csharp-mode-hook-config)
+(use-package omnisharp
+  :hook lsp-mode
+  :straight `(omnisharp
+	      :type git
+	      :host github
+	      :repo "OmniSharp/omnisharp-roslyn"
+	      :after company)
+  :bind (:map csharp-mode-map
+	      ("M-3" . omnisharp-solution-errors)
+	      ("." . omnisharp-auto-complete)
+	      ("<C-SPC>" . omnisharp-auto-complete)
+	      ("<f12>" . omnisharp-go-to-definition)
+	      ("g u" . omnisharp-find-usages)
+	      ("g I" . omnisharp-find-implementations)
+	      ("g o" . omnisharp-go-to-definition-other-window)
+	      ("g r" . omnisharp-run-code-action-refactoring)
+	      ("g f" . omnisharp-fix-code-issue-at-point)
+	      ("g F" . omnisharp-fix-usings)
+	      ("g R" . omnisharp-rename)
+	      (", i" . omnisharp-current-type-information)
+	      (", I" . omnisharp-current-type-documentation)
+	      ("." . omnisharp-add-dot-and-auto-complete)
+	      (", n t" . omnisharp-navigate-to-current-file-member)
+	      (", n s" . omnisharp-navigate-to-solution-member)
+	      (", n f" . omnisharp-navigate-to-solution-file-then-file-member)
+	      (", n F" . omnisharp-navigate-to-solution-file)
+	      (", n r" . omnisharp-navigate-to-region))
+:config
+(setq omnisharp-server-executable-path (expand-file-name "config/omnisharp" user-emacs-directory))
+(setq omnisharp-auto-complete-want-documentation nil) ;; If docs fetching is a problem, comment this
+(add-hook 'csharp-mode-hook 'my-csharp-mode-hook-config))
