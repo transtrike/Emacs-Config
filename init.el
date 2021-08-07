@@ -1,14 +1,14 @@
 ;; You will most likely need to adjust this font size for your system!
-(defvar efs/default-font-size 120)
-(defvar efs/default-variable-font-size 120)
+(defvar ts/default-font-size 120)
+(defvar ts/default-variable-font-size 120)
 
 ;; Make frame transparency overridable
-(defvar efs/frame-transparency '(90 . 90))
+(defvar ts/frame-transparency '(90 . 90))
 
 ;; The default is 800 kilobytes.  Measured in bytes.
 (setq gc-cons-threshold (* 100 1024 1024))
 
-(defun efs/display-startup-time ()
+(defun ts/display-startup-time ()
   (message "Emacs loaded in %s with %d garbage collections."
 	   (format "%.2f seconds"
 		   (float-time
@@ -16,7 +16,7 @@
 		    ))
 	   gcs-done))
 
-(add-hook 'emacs-startup-hook 'efs/display-startup-time)
+(add-hook 'emacs-startup-hook 'ts/display-startup-time)
 
 (setq straight-fix-flycheck t)
 (setq straight-use-package-by-default t)
@@ -40,8 +40,6 @@
 (straight-register-package 'org)
 (straight-register-package 'org-contrib)
 
-;;(eval-when-compile (require 'use-package))
-
 (use-package bind-key
   :demand t)
 
@@ -53,6 +51,9 @@
 ;; Keep auto-save files away, so they don't trash the current directory
 (setq auto-save-file-name-transforms
       `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
+
+(setq user-init-file (expand-file-name "config.org" user-emacs-directory))
+(bind-key "C-c c" (lambda() (interactive)(find-file "~/.emacs.d/config.org")))
 
 ;; Remove startup message and scratch buffer
 (setq inhibit-startup-message t)
@@ -89,28 +90,28 @@
 		eshell-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
-(defun efs/set-font-faces ()
+(defun ts/set-font-faces ()
   (message "Setting fonts!")
   (set-face-attribute 'default nil
 		      :font "Fira Code Retina"
-		      :height efs/default-font-size)
+		      :height ts/default-font-size)
 
   ;; Set the fixed pitch face
   (set-face-attribute 'fixed-pitch nil
 		      :font "Fira Code Retina"
-		      :height efs/default-font-size)
+		      :height ts/default-font-size)
 
   ;; Set the variable pitch face
   (set-face-attribute 'variable-pitch nil
 		      :font "Cantarell"
-		      :height efs/default-variable-font-size :weight 'regular))
+		      :height ts/default-variable-font-size :weight 'regular))
 
 (if (daemonp)
     (add-hook 'after-make-frame-functions
 	      (lambda(frame)
 		(setq doom-modeline-icon t)
-		(with-selected-frame frame (efs/set-font-faces))))
-  (efs/set-font-faces))
+		(with-selected-frame frame (ts/set-font-faces))))
+  (ts/set-font-faces))
 
 (setq-default ibuffer-saved-filter-groups
 	      `(("Default"
@@ -177,14 +178,15 @@
   :demand t
   :after evil
   :config
+  (general-auto-unbind-keys)
   ;; Define leaders keys to use later on
-  (general-create-definer efs/buffer-keys
+  (general-create-definer ts/buffer-keys
     :keymaps '(normal insert visual emacs)
     :prefix "C-b")
 
-  ;;(efs/leader-keys
-  ;; "t"  '(:ignore t :which-key "toggles"))
-  )
+  (general-create-definer ts/leader-key
+    :keymap '(normal visual emacs)
+    :prefix "C-SPC"))
 
 (use-package evil
   :demand t
@@ -213,14 +215,22 @@
   (evil-collection-init))
 
 ;; Define Evil undo system
-;; (use-package undo-tree
-;;   :demand t
-;;   :after evil
-;;   :init
-;;   ;;(undo-tree-mode)
-;;   (global-undo-tree-mode))
+(use-package undo-tree
+  :demand t
+  :after evil
+  :init
+  (global-undo-tree-mode)
+  :config
+  (setq undo-tree-show-minibuffer-help t)
+  (setq evil-undo-system 'undo-redo)
+  ;; Automatically save and restore undo-tree history
+  (setq undo-tree-auto-save-history t)
+  :bind (:map evil-normal-state-map
+	      ("u" . undo-tree-undo)
+	      ("C-r" . undo-tree-redo)))
 
-;;(setq evil-undo-system 'undo-redo)
+(bind-key* "C-z" 'undo-tree-undo)
+(bind-key* "C-y" 'undo-tree-redo)
 
 (use-package which-key
   :defer 1
@@ -239,6 +249,18 @@
 ;;(add-to-list 'which-key-replacement-alist '(("DEL" . nil) . ("⇤" . nil)))
 ;;(add-to-list 'which-key-replacement-alist '(("SPC" . nil) . ("␣" . nil)))
 
+(use-package hydra)
+
+(defhydra hydra-window ()
+  "Window"
+  ("h" windmove-left)
+  ("l" windmove-right)
+  ("j" windmove-down)
+  ("k" windmove-up))
+
+(ts/leader-key
+  "w" '(hydra-window/body :which-key "Windows"))
+
 ;; Prefer UTF-8
 (prefer-coding-system 'utf-8)
 
@@ -251,31 +273,6 @@
 
 ;; Ensure files end with a new line
 (setq require-final-newline t)
-
-;; (defun copy-to-clipboard ()
-;;   (interactive)
-;;   (if (display-graphic-p)
-;; 	(progn
-;; 	  (message "Yanked region to x-clipboard!")
-;; 	  (call-interactively 'clipboard-kill-ring-save)
-;; 	  )
-;;     (if (region-active-p)
-;; 	  (progn
-;; 	    (shell-command-on-region (region-beginning) (region-end) "xsel -i -b")
-;; 	    (message "Yanked region to clipboard!")
-;; 	    (deactivate-mark))
-;; 	(message "No region active; can't yank to clipboard!")))
-;;   )
-
-;; (evil-define-command paste-from-clipboard()
-;;   (if (display-graphic-p)
-;; 	(progn
-;; 	  (clipboard-yank)
-;; 	  (message "graphics active")
-;; 	  )
-;;     (insert (shell-command-to-string "xsel -o -b"))
-;;     )
-;;   )
 
 (use-package smartparens
   :defer 1
@@ -297,9 +294,6 @@
   :config
   (super-save-mode +1)
   (setq super-save-auto-save-when-idle t))
-
-(setq user-init-file (expand-file-name "config.org" user-emacs-directory))
-(bind-key "C-c c" (lambda() (interactive)(find-file "~/.emacs.d/config.org")))
 
 (require 'org-tempo)
 
@@ -323,12 +317,11 @@
 (setq org-confirm-babel-evaluate nil)
 
 (use-package org-auto-tangle
+  :defer t
   :hook (org-mode . org-auto-tangle-mode))
 
-;; This is nessessary if you want to restore sessions
-;; Useful when emacs crashes in daemon mode, because of
-;; X11(GTK) connection issues
-;; (desktop-save-mode 1)
+;; If you want to save and restore sessions
+;; (desktop-save-mode t)
 
 (use-package magit
   :commands (magit-status))
@@ -337,6 +330,7 @@
 (add-hook 'git-commit-mode-hook 'flyspell-mode)
 
 (use-package ivy
+  :demand t
   :bind (:map ivy-minibuffer-map
 	      ("TAB" . ivy-alt-done)
 	      ("C-j" . ivy-next-line)
@@ -354,7 +348,7 @@
   :bind (("M-x" . counsel-M-x) ;; Enchanced M-x
 	 ("C-x C-f" . counsel-find-file))) ;; Enchanced Find File
 
-(efs/buffer-keys
+(ts/buffer-keys
   "b" 'counsel-switch-buffer)
 
 (use-package swiper
@@ -365,6 +359,7 @@
   (add-to-list 'ivy-height-alist '(swiper . 5))) ;; Make swiper's hight to 5
 
 (use-package company
+  :demand t
   :bind
   (:map evil-normal-state-map
 	("M-." . company-complete))
@@ -373,9 +368,17 @@
   (company-mode))
 
 (use-package flycheck
-  :defer 1
+  :demand t
   :init
   (global-flycheck-mode))
+
+(use-package flyspell
+  :defer 2
+  :init
+  (flyspell-mode 1)
+  :hook
+  (text-mode . flyspell-mode)
+  (prog-mode . flyspell-prog-mode))
 
 ;; (use-package vertico
 ;;   :bind (:map vertico-map
@@ -419,6 +422,12 @@
   (setq projectile-globally-ignored-directories
 	'(".git" "node_modules" "__pycache__" ".vs"))
   (setq projectile-globally-ignored-files '("TAGS" "tags" ".DS_Store")))
+
+(ts/leader-key
+  "p" '(:ignore t :which-key "Projects")
+  "p a" 'projectile-add-known-project
+  "p ." 'projectile-switch-project
+  "p ")
 
 (use-package yasnippet
   :defer 1
@@ -514,7 +523,7 @@
   :bind (:map csharp-mode-map
 	      ("M-3" . omnisharp-solution-errors)
 	      ("." . omnisharp-auto-complete)
-	      ("<C-SPC>" . omnisharp-auto-complete)
+	      ;;("<C-SPC>" . omnisharp-auto-complete)
 	      ("<f12>" . omnisharp-go-to-definition)
 	      ("g u" . omnisharp-find-usages)
 	      ("g I" . omnisharp-find-implementations)

@@ -1,6 +1,6 @@
 #+title: Emacs From Scratch Configuration
-#+PROPERTY: header-args:emacs-lisp :tangle ./init.el :mkdirp yes auto_tangle: t
-
+#+PROPERTY: header-args:emacs-lisp :tangle ./init.el :mkdirp yes
+#+auto_tangle: t
 
 * Welcome to my Emacs config
 Some bla bla stuff goes here
@@ -13,11 +13,11 @@ Some bla bla stuff goes here
   #+begin_src emacs-lisp
 
   ;; You will most likely need to adjust this font size for your system!
-  (defvar efs/default-font-size 120)
-  (defvar efs/default-variable-font-size 120)
+  (defvar ts/default-font-size 120)
+  (defvar ts/default-variable-font-size 120)
 
   ;; Make frame transparency overridable
-  (defvar efs/frame-transparency '(90 . 90))
+  (defvar ts/frame-transparency '(90 . 90))
 
   #+end_src
 
@@ -27,7 +27,7 @@ Some bla bla stuff goes here
   ;; The default is 800 kilobytes.  Measured in bytes.
   (setq gc-cons-threshold (* 100 1024 1024))
 
-  (defun efs/display-startup-time ()
+  (defun ts/display-startup-time ()
     (message "Emacs loaded in %s with %d garbage collections."
 	     (format "%.2f seconds"
 		     (float-time
@@ -35,7 +35,7 @@ Some bla bla stuff goes here
 		      ))
 	     gcs-done))
 
-  (add-hook 'emacs-startup-hook 'efs/display-startup-time)
+  (add-hook 'emacs-startup-hook 'ts/display-startup-time)
 
   #+end_src
 
@@ -64,8 +64,6 @@ Some bla bla stuff goes here
   (straight-register-package 'org)
   (straight-register-package 'org-contrib)
 
-  ;;(eval-when-compile (require 'use-package))
-
   #+end_src
 
   ** Required packages for config comfort or nessessaty
@@ -89,6 +87,16 @@ Some bla bla stuff goes here
 	`((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
 
   #+end_src
+
+  ** Jump to config file
+  The current file, you dumbass...
+    #+begin_src emacs-lisp
+
+    (setq user-init-file (expand-file-name "config.org" user-emacs-directory))
+    (bind-key "C-c c" (lambda() (interactive)(find-file "~/.emacs.d/config.org")))
+
+    #+end_src
+
 
   ** Emacs as a daemon
   This is really a section to explain that a user can pay the cost of emacs initialization only once
@@ -142,28 +150,28 @@ Some bla bla stuff goes here
   I am using the [[https://github.com/tonsky/FiraCode][Fira Code]] and [[https://fonts.google.com/specimen/Cantarell][Cantarell]] fonts for this configuration which will more than likely need to be installed on your machine.  Both can usually be found in the various Linux distro package managers or downloaded from the links above.
   #+begin_src emacs-lisp
 
-  (defun efs/set-font-faces ()
+  (defun ts/set-font-faces ()
     (message "Setting fonts!")
     (set-face-attribute 'default nil
 			:font "Fira Code Retina"
-			:height efs/default-font-size)
+			:height ts/default-font-size)
 
     ;; Set the fixed pitch face
     (set-face-attribute 'fixed-pitch nil
 			:font "Fira Code Retina"
-			:height efs/default-font-size)
+			:height ts/default-font-size)
 
     ;; Set the variable pitch face
     (set-face-attribute 'variable-pitch nil
 			:font "Cantarell"
-			:height efs/default-variable-font-size :weight 'regular))
+			:height ts/default-variable-font-size :weight 'regular))
 
   (if (daemonp)
       (add-hook 'after-make-frame-functions
 		(lambda(frame)
 		  (setq doom-modeline-icon t)
-		  (with-selected-frame frame (efs/set-font-faces))))
-    (efs/set-font-faces))
+		  (with-selected-frame frame (ts/set-font-faces))))
+    (ts/set-font-faces))
 
   #+end_src
 
@@ -253,7 +261,7 @@ Some bla bla stuff goes here
   #+end_src
 
 
-* Keybinding Configuration
+* Keyboard Configuration
 
 
   ** One line keybindings
@@ -276,67 +284,77 @@ Some bla bla stuff goes here
   #+end_src
 
   ** Evil mode
-  This configuration uses [[https://evil.readthedocs.io/en/latest/index.html][evil-mode]] for a Vi-like modal editing experience.  [[https://github.com/noctuid/general.el][general.el]] is used for easy keybinding configuration that integrates well with which-key.  [[https://github.com/emacs-evil/evil-collection][evil-collection]] is used to automatically configure various Emacs modes with Vi-like keybindings for evil-mode.
-  The "C-<something>" stands for Ctrl <something>
-  The "M-<something>" stands for Meta(also called Alt) <something>
-  Example: "C-g" is clicking at the same time "Ctrl" and "g"
+  This configuration uses [[https://evil.readthedocs.io/en/latest/index.html][evil-mode]] for a Vi-like modal editing experience.
+  [[https://github.com/noctuid/general.el][general.el]] is used for easy keybinding configuration that integrates well with which-key.
+  [[https://github.com/emacs-evil/evil-collection][evil-collection]] is used to automatically configure various Emacs modes with Vi-like keybindings for evil-mode.
+  * The "C-<something>" stands for Ctrl <something>
+  * The "M-<something>" stands for Meta(also called Alt) <something>
+  * Example: "C-g" is clicking at the same time "Ctrl" and "g"
   #+begin_src emacs-lisp
 
-  (use-package general
-    :demand t
-    :after evil
-    :config
-    ;; Define leaders keys to use later on
-    (general-create-definer efs/buffer-keys
-      :keymaps '(normal insert visual emacs)
-      :prefix "C-b")
+    (use-package general
+      :demand t
+      :after evil
+      :config
+      (general-auto-unbind-keys)
+      ;; Define leaders keys to use later on
+      (general-create-definer ts/buffer-keys
+	:keymaps '(normal insert visual emacs)
+	:prefix "C-b")
 
-    ;;(efs/leader-keys
-    ;; "t"  '(:ignore t :which-key "toggles"))
-    )
+      (general-create-definer ts/leader-key
+	:keymap '(normal visual emacs)
+	:prefix "C-SPC"))
 
-  (use-package evil
-    :demand t
-    :init
-    (setq evil-want-integration t)
-    (setq evil-want-keybinding nil)
-    ;;(setq evil-want-C-u-scroll t) ;; Scroll with C-u
-    (setq evil-want-C-i-jump nil)
-    :config
-    ;; Exit any state when something goes wrong with C-g
-    (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state)
-    (define-key evil-insert-state-map (kbd "C-h") 'evil-delete-backward-char-and-join)
+    (use-package evil
+      :demand t
+      :init
+      (setq evil-want-integration t)
+      (setq evil-want-keybinding nil)
+      ;;(setq evil-want-C-u-scroll t) ;; Scroll with C-u
+      (setq evil-want-C-i-jump nil)
+      :config
+      ;; Exit any state when something goes wrong with C-g
+      (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state)
+      (define-key evil-insert-state-map (kbd "C-h") 'evil-delete-backward-char-and-join)
 
-    ;; Use visual line motions even outside of visual-line-mode buffers
-    (evil-global-set-key 'motion "j" 'evil-next-visual-line)
-    (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
+      ;; Use visual line motions even outside of visual-line-mode buffers
+      (evil-global-set-key 'motion "j" 'evil-next-visual-line)
+      (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
 
-    (evil-set-initial-state 'messages-buffer-mode 'normal)
-    (evil-set-initial-state 'dashboard-mode 'normal)
+      (evil-set-initial-state 'messages-buffer-mode 'normal)
+      (evil-set-initial-state 'dashboard-mode 'normal)
 
-    (evil-mode 1))
+      (evil-mode 1))
 
-  (use-package evil-collection
-    :after evil
-    :config
-    (evil-collection-init))
+    (use-package evil-collection
+      :after evil
+      :config
+      (evil-collection-init))
 
   #+end_src
 
-  Configure evil-undo-system
-  *TODO*: Fix, 'cuz it's not working properly
-  *Note*: Disabled
+  Undo Tree
+  Undo visualizer and tree system for better messing up your files and then restoring them
   #+begin_src emacs-lisp
 
   ;; Define Evil undo system
-  ;; (use-package undo-tree
-  ;;   :demand t
-  ;;   :after evil
-  ;;   :init
-  ;;   ;;(undo-tree-mode)
-  ;;   (global-undo-tree-mode))
+  (use-package undo-tree
+    :demand t
+    :after evil
+    :init
+    (global-undo-tree-mode)
+    :config
+    (setq undo-tree-show-minibuffer-help t)
+    (setq evil-undo-system 'undo-redo)
+    ;; Automatically save and restore undo-tree history
+    (setq undo-tree-auto-save-history t)
+    :bind (:map evil-normal-state-map
+		("u" . undo-tree-undo)
+		("C-r" . undo-tree-redo)))
 
-  ;;(setq evil-undo-system 'undo-redo)
+  (bind-key* "C-z" 'undo-tree-undo)
+  (bind-key* "C-y" 'undo-tree-redo)
 
   #+end_src
 
@@ -364,6 +382,24 @@ Some bla bla stuff goes here
 
   #+end_src
 
+  ** Hydra
+  "Keybindings that stick around"... Whatever the fuck that means...
+  #+begin_src emacs-lisp
+
+    (use-package hydra)
+
+    (defhydra hydra-window ()
+      "Window"
+      ("h" windmove-left)
+      ("l" windmove-right)
+      ("j" windmove-down)
+      ("k" windmove-up))
+
+    (ts/leader-key
+      "w" '(hydra-window/body :which-key "Windows"))
+
+  #+end_src
+
 
 * Editor & Files improvements
 
@@ -383,38 +419,6 @@ Some bla bla stuff goes here
 
   ;; Ensure files end with a new line
   (setq require-final-newline t)
-
-  #+end_src
-
-  ** Copy/paste to system clipboard
-  Use these functions, if there are any problems copying and pasting.
-  Make sure to bind them to something other then C-c & C-v
-  #+begin_src emacs-lisp
-
-  ;; (defun copy-to-clipboard ()
-  ;;   (interactive)
-  ;;   (if (display-graphic-p)
-  ;; 	(progn
-  ;; 	  (message "Yanked region to x-clipboard!")
-  ;; 	  (call-interactively 'clipboard-kill-ring-save)
-  ;; 	  )
-  ;;     (if (region-active-p)
-  ;; 	  (progn
-  ;; 	    (shell-command-on-region (region-beginning) (region-end) "xsel -i -b")
-  ;; 	    (message "Yanked region to clipboard!")
-  ;; 	    (deactivate-mark))
-  ;; 	(message "No region active; can't yank to clipboard!")))
-  ;;   )
-
-  ;; (evil-define-command paste-from-clipboard()
-  ;;   (if (display-graphic-p)
-  ;; 	(progn
-  ;; 	  (clipboard-yank)
-  ;; 	  (message "graphics active")
-  ;; 	  )
-  ;;     (insert (shell-command-to-string "xsel -o -b"))
-  ;;     )
-  ;;   )
 
   #+end_src
 
@@ -456,15 +460,6 @@ Some bla bla stuff goes here
   #+end_src
 
   ** Org mode
-
-    *** Jump to config file
-    The curent file you're looking at...
-    #+begin_src emacs-lisp
-
-    (setq user-init-file (expand-file-name "config.org" user-emacs-directory))
-    (bind-key "C-c c" (lambda() (interactive)(find-file "~/.emacs.d/config.org")))
-
-    #+end_src
 
     *** Add templates for code blocks
     #+begin_src emacs-lisp
@@ -512,6 +507,7 @@ Some bla bla stuff goes here
     #+begin_src emacs-lisp
 
     (use-package org-auto-tangle
+      :defer t
       :hook (org-mode . org-auto-tangle-mode))
 
     #+end_src
@@ -519,10 +515,8 @@ Some bla bla stuff goes here
   ** Save session
   #+begin_src emacs-lisp
 
-  ;; This is nessessary if you want to restore sessions
-  ;; Useful when emacs crashes in daemon mode, because of
-  ;; X11(GTK) connection issues
-  ;; (desktop-save-mode 1)
+  ;; If you want to save and restore sessions
+  ;; (desktop-save-mode t)
 
   #+end_src
 
@@ -546,6 +540,7 @@ Some bla bla stuff goes here
   #+begin_src emacs-lisp
 
   (use-package ivy
+    :demand t
     :bind (:map ivy-minibuffer-map
 		("TAB" . ivy-alt-done)
 		("C-j" . ivy-next-line)
@@ -567,7 +562,7 @@ Some bla bla stuff goes here
     :bind (("M-x" . counsel-M-x) ;; Enchanced M-x
 	   ("C-x C-f" . counsel-find-file))) ;; Enchanced Find File
 
-  (efs/buffer-keys
+  (ts/buffer-keys
     "b" 'counsel-switch-buffer)
 
   #+end_src
@@ -592,6 +587,7 @@ Some bla bla stuff goes here
   #+begin_src emacs-lisp
 
   (use-package company
+    :demand t
     :bind
     (:map evil-normal-state-map
 	  ("M-." . company-complete))
@@ -601,13 +597,23 @@ Some bla bla stuff goes here
 
   #+end_src
 
-  * Flycheck
+  * Typos never again!
+  - Flycheck: For code errors!
+  - Flyspell: Grammar errors!
   #+begin_src emacs-lisp
 
   (use-package flycheck
-    :defer 1
+    :demand t
     :init
     (global-flycheck-mode))
+
+  (use-package flyspell
+    :defer 2
+    :init
+    (flyspell-mode 1)
+    :hook
+    (text-mode . flyspell-mode)
+    (prog-mode . flyspell-prog-mode))
 
   #+end_src
 
@@ -659,17 +665,23 @@ Some bla bla stuff goes here
   Projects management
   #+begin_src emacs-lisp
 
-  (use-package projectile
-    :demand t
-    :config
-    (projectile-mode)
-    (setq projectile-enable-caching t)
-    (setq projectile-indexing-method 'alien)
-    (setq projectile-globally-ignored-file-suffixes
-	  '("#" "~" ".swp" ".o" ".so" ".exe" ".dll" ".elc" ".pyc" ".jar"))
-    (setq projectile-globally-ignored-directories
-	  '(".git" "node_modules" "__pycache__" ".vs"))
-    (setq projectile-globally-ignored-files '("TAGS" "tags" ".DS_Store")))
+	(use-package projectile
+	  :demand t
+	  :config
+	  (projectile-mode)
+	  (setq projectile-enable-caching t)
+	  (setq projectile-indexing-method 'alien)
+	  (setq projectile-globally-ignored-file-suffixes
+		'("#" "~" ".swp" ".o" ".so" ".exe" ".dll" ".elc" ".pyc" ".jar"))
+	  (setq projectile-globally-ignored-directories
+		'(".git" "node_modules" "__pycache__" ".vs"))
+	  (setq projectile-globally-ignored-files '("TAGS" "tags" ".DS_Store")))
+
+	(ts/leader-key
+	  "p" '(:ignore t :which-key "Projects")
+	  "p a" 'projectile-add-known-project
+	  "p ." 'projectile-switch-project
+	  "p ")
 
   #+end_src
 
@@ -806,7 +818,7 @@ Some bla bla stuff goes here
     :bind (:map csharp-mode-map
 		("M-3" . omnisharp-solution-errors)
 		("." . omnisharp-auto-complete)
-		("<C-SPC>" . omnisharp-auto-complete)
+		;;("<C-SPC>" . omnisharp-auto-complete)
 		("<f12>" . omnisharp-go-to-definition)
 		("g u" . omnisharp-find-usages)
 		("g I" . omnisharp-find-implementations)
